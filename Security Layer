@@ -1,0 +1,115 @@
+--SECURITY LAYER --- 
+
+-- Creating roles and grating access--
+
+use role accountadmin;
+
+--creating business roles--
+
+create role ANALYST_ROLE;
+create role BI_USER_ROLE;
+
+-- Grant Access--
+
+grant usage on warehouse wh_analytics to role ANALYST_ROLE;
+grant usage on database OLIST_MART to role ANALYST_ROLE;
+grant usage on schema OLIST_MART.PUBLIC to role ANALYST_ROLE;
+grant select on all tables in schema OLIST_MART.PUBLIC to role ANALYST_ROLE;
+
+GRANT ROLE ANALYST_ROLE TO USER SAIKIRAN****;
+show grants to user SAIKIRAN****;
+
+
+
+use role analyst_role;
+
+SELECT * FROM FACT_ORDER_LINE LIMIT 1;
+
+
+-- Personally identifiable information (PII) Masking policy ---
+use role accountadmin;
+
+-- Masking  customer zip codes --
+CREATE OR REPLACE MASKING POLICY MASK_ZIP_NUM AS 
+  (zip NUMBER) RETURNS NUMBER ->
+  CASE 
+    WHEN CURRENT_ROLE() IN ('BI_USER_ROLE') THEN NULL 
+    WHEN CURRENT_ROLE() IN ('ANALYST_ROLE') THEN FLOOR(zip/1000)*1000  -- replacing last 3 digits to zero 
+    ELSE zip 
+  END;
+
+-- Apply to table
+ALTER TABLE DIM_CUSTOMER 
+MODIFY COLUMN customer_zip_code_prefix SET MASKING POLICY MASK_ZIP_NUM;
+
+--masking test case 1 --
+USE ROLE ACCOUNTADMIN;
+
+SELECT customer_zip_code_prefix FROM DIM_CUSTOMER LIMIT 3;  -- 10123( displays everything)
+
+--masking test case 2-- 
+USE ROLE ANALYST_ROLE; 
+
+SELECT customer_zip_code_prefix FROM DIM_CUSTOMER LIMIT 3;  -- 10000 ( last 3 digits are zeros )
+
+
+-- Row level security (RLS) --
+
+-- RLS: Managers see only their state
+CREATE ROW ACCESS POLICY RAP_STATE_MANAGER AS 
+  (state STRING) RETURNS BOOLEAN ->
+  state = CURRENT_ACCOUNT_NAME();  -- Or session variable
+
+ALTER TABLE DIM_CUSTOMER ADD ROW ACCESS POLICY RAP_STATE_MANAGER ON (customer_state);
+
+
+-- PERFORMANCE OPTIMIZATION (Clustering)--
+--Add Clustering Key (improves Query Speed)--
+
+-- Cluster on high-cardinality filter (seller_state used in KPIs)
+ALTER TABLE FACT_ORDER_LINE 
+CLUSTER BY (DATE_TRUNC('MONTH', ORDER_PURCHASE_TS), SELLER_ID);
+
+
+-- Verify (takes 1-2 min)
+SELECT SYSTEM$CLUSTERING_INFORMATION('FACT_ORDER_LINE');
+
+
+
+
+---TIME TRAVEL (Data Governance) --
+
+-- Simulate bad load → Time Travel recovery
+CREATE TABLE FACT_ORDER_LINE_BACKUP AS SELECT * FROM FACT_ORDER_LINE;
+
+-- "Accidentally" drop column
+ALTER TABLE FACT_ORDER_LINE DROP COLUMN total_revenue;
+
+-- Recover from 1hr ago
+CREATE TABLE FACT_ORDER_LINE_RECOVERED AS 
+SELECT * FROM FACT_ORDER_LINE AT (OFFSET => -3600);
+
+SELECT * FROM FACT_ORDER_LINE_RECOVERED LIMIT 1;
+
+
+-- snowpipe for continuos data ingestion--
+-- creating a pipe --
+
+use database olist_raw;
+use warehouse wh_ingest;
+use schema OLIST_RAW.MYSCHEMA;
+
+
+CREATE OR REPLACE PIPE olist_orders_pipe 
+  AUTO_INGEST = TRUE
+  AS
+  COPY INTO OLIST_RAW.MYSCHEMA.OLIST_ORDERS_RAW // data to be  ingested into raw layer //
+  FROM @OLIST_S3_STAGE
+  PATTERN = '.*olist_orders_dataset.*\.csv'
+  FILE_FORMAT = OLIST_CSV_FORMAT
+  ON_ERROR = 'CONTINUE';
+  
+show pipes;
+
+DESC PIPE olist_orders_pipe; // copy notification channel and create a sns queue event in s3//
+

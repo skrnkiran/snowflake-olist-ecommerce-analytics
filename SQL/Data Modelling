@@ -1,0 +1,72 @@
+--  data modelling using star schema --
+
+use database OLIST_MART;
+use schema public;
+
+
+
+CREATE TABLE FACT_ORDER_LINE AS
+SELECT 
+  -- GRAIN (unique identifier)
+  oi.order_id,
+  oi.order_item_id,
+  oi.product_id,
+  oi.seller_id,
+  
+  -- FOREIGN KEYS
+  o.customer_id,
+  
+  -- MEASURES 
+  oi.price,
+  oi.freight_value,
+  (oi.price + oi.freight_value) AS total_revenue,
+  
+  -- TIMESTAMPS 
+  o.order_purchase_ts,
+  o.delivered_carrier_ts,
+  o.delivered_customer_ts,
+  o.estimated_delivery_ts,
+  
+  -- BUSINESS KPIs 
+  DATEDIFF('day', o.delivered_carrier_ts, o.delivered_customer_ts) AS actual_delivery_days,
+  DATEDIFF('day', o.estimated_delivery_ts , o.delivered_customer_ts) AS delivery_delay_days,
+  CASE WHEN o.delivered_customer_ts <= o.estimated_delivery_ts THEN 1 ELSE 0 END AS on_time_delivery_flag
+  
+FROM OLIST_STAGE.PUBLIC.olist_order_items_clean oi
+JOIN OLIST_STAGE.PUBLIC.olist_orders_clean o ON oi.order_id = o.order_id;
+
+-- Verify (112,650 rows expected)
+SELECT COUNT(*) FROM FACT_ORDER_LINE;
+
+
+SELECT 
+  ROUND(AVG(actual_delivery_days), 1) AS avg_actual_days,
+  ROUND(AVG(delivery_delay_days), 1) AS avg_delay_days,
+  ROUND(AVG(on_time_delivery_flag), 3) AS otif_rate
+FROM FACT_ORDER_LINE;
+
+-- DIM_CUSTOMER
+CREATE TABLE DIM_CUSTOMER AS
+SELECT DISTINCT
+  customer_id, customer_unique_id, customer_zip_code_prefix,
+  customer_city, customer_state
+FROM OLIST_STAGE.PUBLIC.olist_customers_clean;
+
+-- DIM_SELLER  
+CREATE TABLE DIM_SELLER AS
+SELECT DISTINCT
+  seller_id, seller_zip_code_prefix, seller_city, seller_state
+FROM OLIST_STAGE.PUBLIC.olist_sellers_clean;
+
+-- DIM_PRODUCT (with English categories) --
+CREATE TABLE DIM_PRODUCT AS
+SELECT DISTINCT
+  p.product_id, p.product_category_name,
+  COALESCE(t.product_category_name_english, p.product_category_name) AS product_category_name_english,
+  p.product_weight_g, p.product_length_cm, p.product_height_cm, p.product_width_cm
+FROM OLIST_STAGE.PUBLIC.olist_products_clean p
+LEFT JOIN OLIST_STAGE.PUBLIC.product_category_name_translation_clean t 
+  ON p.product_category_name = t.product_category_name;
+
+
+

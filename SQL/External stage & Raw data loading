@@ -1,1 +1,194 @@
+//Declaring the role//
+USE ROLE ACCOUNTADMIN;
+
+//create a warehouse using compute or warehouse list //
+use warehouse WH_INGEST;
+
+//Manually creating a warehouse//
+create warehouse WH_ANALYTICS
+WAREHOUSE_SIZE = 'MEDIUM' 
+  AUTO_SUSPEND = 300 
+  AUTO_RESUME = TRUE; 
+
+//Creating databses //
+CREATE DATABASE OLIST_RAW;
+CREATE DATABASE OLIST_STAGE;
+CREATE DATABASE OLIST_MART;
+
+Create schema OLIST_RAW.MYSchema;
+
+//specifying warehouse, databse and schema //
+use warehouse WH_INGEST;
+use database OLIST_RAW;
+Use schema MYSchema;
+
+//creating a S3 storage object to help connect to the AWS //
+
+CREATE OR REPLACE STORAGE INTEGRATION s3_integration
+  TYPE = EXTERNAL_STAGE
+  STORAGE_PROVIDER = S3
+  ENABLED = TRUE
+  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::430118816313:role/snowflake-role'
+  STORAGE_ALLOWED_LOCATIONS = ('s3://kirantestsnowflake/');
+
+desc INTEGRATION s3_integration;
+
+-- File format for Olist CSVs
+CREATE FILE FORMAT OLIST_CSV_FORMAT 
+  TYPE = CSV 
+  FIELD_DELIMITER = ',' 
+  SKIP_HEADER = 1 
+  FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+  EMPTY_FIELD_AS_NULL = TRUE 
+  NULL_IF = ('NULL', 'null', '');
+
+-- External stage pointing to your S3 bucket
+CREATE STAGE OLIST_S3_STAGE
+  URL = 's3://kirantestsnowflake/testxyzsnowflake/archive/'
+  STORAGE_INTEGRATION = s3_integration
+  FILE_FORMAT = OLIST_CSV_FORMAT;
+
+LIST @OLIST_S3_STAGE;
+
+ --1. CREATE raw table & LOAD (orders first)
+CREATE TABLE olist_orders_raw (
+  order_id STRING,
+  customer_id STRING,
+  order_status STRING,
+  order_purchase_timestamp STRING,
+  order_approved_at STRING,
+  order_delivered_carrier_date STRING,
+  order_delivered_customer_date STRING,
+  order_estimated_delivery_date STRING
+);
+
+-- COPY INTO orders (loads all matching files)
+COPY INTO olist_orders_raw 
+FROM @OLIST_S3_STAGE/olist_orders_dataset.csv
+ON_ERROR = 'CONTINUE';
+
+-- 2.. Customers (96,961 rows expected)
+CREATE TABLE olist_customers_raw (
+  customer_id STRING,
+  customer_unique_id STRING, 
+  customer_zip_code_prefix STRING,
+  customer_city STRING, 
+  customer_state STRING
+);
+
+-- copy into customers.
+COPY INTO olist_customers_raw
+FROM @OLIST_S3_STAGE/olist_customers_dataset.csv;
+SELECT COUNT(*) FROM olist_customers_raw;
+
+-- 3. Order Items (112,650 rows expected)  
+CREATE TABLE olist_order_items_raw (
+  order_id STRING, 
+  order_item_id STRING,
+  product_id STRING,
+  seller_id STRING, 
+  shipping_limit_date STRING, 
+  price STRING,
+  freight_value STRING
+);
+
+--copy into order_items.
+
+COPY INTO olist_order_items_raw 
+FROM @OLIST_S3_STAGE/olist_order_items_dataset.csv;
+SELECT COUNT(*) FROM olist_order_items_raw;
+
+
+-- 4. Sellers (3,095 rows expected)
+CREATE TABLE olist_sellers_raw (
+  seller_id STRING,
+  seller_zip_code_prefix STRING,
+  seller_city STRING,
+  seller_state STRING
+);
+
+--copy into sellers.
+COPY INTO olist_sellers_raw 
+FROM @OLIST_S3_STAGE/olist_sellers_dataset.csv;
+SELECT COUNT(*) FROM olist_sellers_raw;
+
+-- 5. Payments (136,107 rows expected)
+CREATE TABLE olist_payments_raw (
+  order_id STRING, 
+  payment_sequential STRING, 
+  payment_type STRING,
+  payment_installments STRING, 
+  payment_value STRING
+);
+
+--copy into payments
+COPY INTO olist_payments_raw 
+FROM @OLIST_S3_STAGE/olist_order_payments_dataset.csv;
+SELECT COUNT(*) FROM olist_payments_raw;
+
+
+--6. order_review.
+CREATE TABLE olist_order_reviews_raw (
+  review_id STRING,
+  order_id STRING,
+  review_score STRING,
+  review_comment_title STRING,
+  review_comment_message STRING,
+  review_creation_date STRING,
+  review_answer_timestamp STRING
+);
+
+--copy into order_reviews
+COPY INTO olist_order_reviews_raw 
+FROM @OLIST_S3_STAGE/olist_order_reviews_dataset.csv
+ON_ERROR = 'CONTINUE';
+SELECT COUNT(*) FROM olist_order_reviews_raw;
+
+--7.products
+CREATE TABLE olist_products_raw (
+  product_id STRING,
+  product_category_name STRING,
+  product_name_length STRING,
+  product_description_length STRING,
+  product_photos_qty STRING,
+  product_weight_g STRING,
+  product_length_cm STRING,
+  product_height_cm STRING,
+  product_width_cm STRING
+);
+
+--copy into products
+COPY INTO olist_products_raw 
+FROM @OLIST_S3_STAGE/olist_products_dataset.csv
+ON_ERROR = 'CONTINUE';
+SELECT COUNT(*) FROM olist_products_raw;
+
+--8.category tranx
+
+CREATE TABLE product_category_name_translation_raw (
+  product_category_name STRING,
+  product_category_name_english STRING
+);
+
+--copy into category tranx
+COPY INTO product_category_name_translation_raw 
+FROM @OLIST_S3_STAGE/product_category_name_translation.csv
+ON_ERROR = 'CONTINUE';
+SELECT COUNT(*) FROM product_category_name_translation_raw;
+
+--9.Geolocations
+
+CREATE TABLE olist_geolocation_raw (
+  geolocation_zip_code_prefix STRING,
+  geolocation_lat STRING,
+  geolocation_lng STRING,
+  geolocation_city STRING,
+  geolocation_state STRING
+);
+
+--copy into geolocations
+COPY INTO olist_geolocation_raw 
+FROM @OLIST_S3_STAGE/olist_geolocation_dataset.csv
+ON_ERROR = 'CONTINUE';
+SELECT COUNT(*) FROM olist_geolocation_raw;
 

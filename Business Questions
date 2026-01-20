@@ -1,0 +1,69 @@
+--1. Seller Performance Ranking --
+
+
+SELECT 
+  ds.seller_state,
+  COUNT(*) as total_items,
+  ROUND(AVG(fol.on_time_delivery_flag), 3) as otif_rate,
+  ROUND(AVG(fol.actual_delivery_days), 1) as avg_days,
+  ROUND(SUM(fol.total_revenue), 0) as revenue
+FROM FACT_ORDER_LINE fol
+JOIN DIM_SELLER ds ON fol.seller_id = ds.seller_id
+GROUP BY ds.seller_state
+ORDER BY total_items DESC
+limit 5;
+
+
+
+--2. Late delivery Revenue risk --
+
+SELECT 
+  CASE WHEN delivery_delay_days > 0 THEN 'LATE' ELSE 'ON_TIME/EARLY' END as delivery_status,
+  COUNT(*) as shipments,
+  ROUND(AVG(delivery_delay_days), 1) as avg_delay_days,
+  ROUND(SUM(total_revenue), 0) as revenue_exposure
+FROM FACT_ORDER_LINE
+GROUP BY 1;
+
+
+--3. Top Product Categories by Margin --
+
+SELECT 
+  dp.PRODUCT_CATEGORY_NAME_ENGLISH,
+  COUNT(*) as items_sold,
+  ROUND(SUM(fol.price), 0) as product_revenue,
+  ROUND(SUM(fol.freight_value), 0) as freight_cost,
+  ROUND(SUM(fol.freight_value)/SUM(fol.price), 3) as freight_pct
+FROM FACT_ORDER_LINE fol
+JOIN DIM_PRODUCT dp ON fol.product_id = dp.product_id
+GROUP BY dp.PRODUCT_CATEGORY_NAME_ENGLISH
+ORDER BY product_revenue DESC
+LIMIT 10;
+
+--4. Customer Concentration Risk --
+
+select 
+       c.CUSTOMER_STATE , 
+       count(distinct fol.CUSTOMER_ID ) as total_customers,
+       count(distinct fol.ORDER_ID ) as total_orders,
+       sum(fol.TOTAL_REVENUE) as revenue
+from FACT_ORDER_LINE fol
+join dim_customer c
+on fol.customer_id = c.customer_id
+group by c.customer_state
+order by revenue desc;
+
+
+--5. Seller Efficiency (Revenue per Day)
+
+
+SELECT 
+  ds.seller_state,
+  ROUND(AVG(fol.actual_delivery_days), 1) as avg_days,
+  ROUND(SUM(fol.total_revenue)/COUNT(*), 0) as revenue_per_item,
+  ROUND(SUM(fol.total_revenue)/NULLIF(AVG(fol.actual_delivery_days), 0), 0) as revenue_per_day
+FROM FACT_ORDER_LINE fol
+JOIN DIM_SELLER ds ON fol.seller_id = ds.seller_id
+GROUP BY ds.seller_state
+ORDER BY revenue_per_day DESC;
+

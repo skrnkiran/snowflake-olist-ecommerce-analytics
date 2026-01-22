@@ -8,9 +8,10 @@ Revenue leakage analysis (late delivery impact)<br/>
 Product category margins (freight % optimization)<br/>
 Customer concentration risk (state-level)<br/>
 Supply chain efficiency (revenue per delivery day)<br/>
-erDiagram
-```mermaid
 
+erDiagram
+
+```mermaid
     FACT_ORDER_LINE ||--o{ DIM_CUSTOMER : "places"
     FACT_ORDER_LINE ||--o{ DIM_SELLER : "sold_by" 
     FACT_ORDER_LINE ||--o{ DIM_PRODUCT : "contains"

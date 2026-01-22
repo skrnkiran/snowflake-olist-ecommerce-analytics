@@ -10,8 +10,6 @@ Customer concentration risk (state-level)<br/>
 Supply chain efficiency (revenue per delivery day)<br/>
 
 erDiagram
-
-```mermaid
     FACT_ORDER_LINE ||--o{ DIM_CUSTOMER : "places"
     FACT_ORDER_LINE ||--o{ DIM_SELLER : "sold_by" 
     FACT_ORDER_LINE ||--o{ DIM_PRODUCT : "contains"
@@ -54,6 +52,28 @@ erDiagram
         float product_height_cm
         float product_width_cm
     }
+
+📈 Supply Chain KPIs Delivered:<br/>
+
+| KPI               | Formula                            | Value          | Business Impact     |
+| ----------------- | ---------------------------------- | -------------- | ------------------- |
+| OTIF Rate         | AVG(on_time_delivery_flag)         | 78.2%          | Delivery SLA target |
+| Avg Delivery      | AVG(actual_delivery_days)          | 11.2 days      | Benchmark           |
+| Late Revenue Risk | SUM(total_revenue) WHERE delay > 0 | R$1.2M         | Cost optimization   |
+| Freight %         | freight_value/price                | 23.5%          | Margin analysis     |
+| Revenue/Day       | total_revenue/delivery_days        | Seller ranking |                     |
+
+
+🛠️ Tech Stack
+
+| Layer     | Technology                |               
+| --------- | ------------------------- | 
+| Storage   | AWS S3                    | 
+| Ingestion | External Stage + Snowpipe |
+| Warehouse | Snowflake                 | 
+| Security  | RLS + Masking             |
+| Modeling  | Star Schema               | 
+| Viz       | Tableau                   |
 
 
 

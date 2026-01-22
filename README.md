@@ -1,5 +1,13 @@
 # snowflake-olist-ecommerce-analytics
+Production-grade Snowflake data warehouse analyzing Olist Brazilian e-commerce dataset (994K rows across 9 CSVs). Features medallion architecture, S3 external stages + Snowpipe, star schema modeling, RLS/masking security, clustering optimization, and supply chain KPIs.<br/>
 
+🎯 Business Value
+Olist serves 3K+ Brazilian cities. This pipeline delivers:<br/>
+Seller performance tracking (OTIF, delivery delays)<br/>
+Revenue leakage analysis (late delivery impact)<br/>
+Product category margins (freight % optimization)<br/>
+Customer concentration risk (state-level)<br/>
+Supply chain efficiency (revenue per delivery day)<br/>
 
 
 ```mermaid

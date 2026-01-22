@@ -10,7 +10,6 @@ Customer concentration risk (state-level)<br/>
 Supply chain efficiency (revenue per delivery day)<br/>
 
 PROJECT WORKFLOW:
-
 ```mermaid
 erDiagram
     FACT_ORDER_LINE ||--o{ DIM_CUSTOMER : "places"

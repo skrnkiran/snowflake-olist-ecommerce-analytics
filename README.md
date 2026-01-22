@@ -10,6 +10,7 @@ Customer concentration risk (state-level)<br/>
 Supply chain efficiency (revenue per delivery day)<br/>
 
 PROJECT WORKFLOW:
+```mermaid
 flowchart TD
     A[1 Clone Repo<br/>git clone ...] 
     A --> B[2 Setup Snowflake<br/>2 Warehouses<br/>3 Databases]

@@ -9,8 +9,8 @@ Product category margins (freight % optimization)<br/>
 Customer concentration risk (state-level)<br/>
 Supply chain efficiency (revenue per delivery day)<br/>
 
-erDiagram<br/>
-![WhatsApp Image 2026-01-15 at 12 19 53 AM](https://github.com/user-attachments/assets/7ffe641b-24f3-4e5b-8ecc-737b5fb8b991)
+ER Diagram<br/>
+![ERdiagram](https://github.com/user-attachments/assets/ade7945a-4f2c-4eee-a147-3b9f704a3e4b)
 
 Data Workflow:<br/>
 <img width="1185" height="345" alt="image" src="https://github.com/user-attachments/assets/f0557f04-1df3-4041-8766-86bb8da6980e" />
@@ -35,7 +35,7 @@ Data Workflow:<br/>
 | Warehouse | Snowflake                 | 
 | Security  | RLS + Masking             |
 | Modeling  | Star Schema               | 
-| Viz       | Tableau                   |
+
 
 
 

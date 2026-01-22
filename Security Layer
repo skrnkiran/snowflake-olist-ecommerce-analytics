@@ -1,6 +1,6 @@
 --SECURITY LAYER --- 
 
--- Creating roles and grating access--
+-- Creating roles and granting access--
 
 use role accountadmin;
 
